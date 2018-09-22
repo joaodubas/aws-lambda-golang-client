@@ -19,18 +19,11 @@ func main() {
 		help()
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	var output []rune
-
-	for {
-		input, _, err := reader.ReadRune()
-		if err != nil && err == io.EOF {
-			break
-		}
-		output = append(output, input)
+	output, err := read(os.Stdin)
+	if err != nil {
+		log.Fatalf("read: couldn't read from stdin: %v", err)
 	}
-
-	log.Println("Stdin:\n", string(output))
+	log.Printf("read: get content: %s", string(output))
 
 	port := os.Getenv("_LAMBDA_SERVER_PORT")
 	if port == "" {
@@ -74,4 +67,23 @@ Usage: echo '{"foo": "bar"}' | lambda_client
 `
 	fmt.Printf(msg, cmd)
 	os.Exit(1)
+}
+
+// read all content from a given reader into an array of runes.
+func read(r io.Reader) ([]rune, error) {
+	buff := bufio.NewReader(r)
+	var output []rune
+
+	for {
+		if input, _, err := buff.ReadRune(); err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return output, err
+			}
+		} else {
+			output = append(output, input)
+		}
+	}
+	return output, nil
 }

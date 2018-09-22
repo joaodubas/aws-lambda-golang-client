@@ -31,15 +31,11 @@ func main() {
 		log.Fatalf("client: error: %v", err)
 	}
 
-	req := messages.InvokeRequest{}
-	req.Payload = []byte(string(output))
-	rep := messages.InvokeResponse{}
-	err = client.Call("Function.Invoke", req, &rep)
-
+	resp, err := rpcCall(client, []byte(string(output)))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("rpc: communication error: %v", err)
 	}
-	log.Println("Stdout:\n", string(rep.Payload))
+	log.Printf("rpc: get: %s", string(resp.Payload))
 }
 
 // stdinFromPipe check if stdin was set from a pipe.
@@ -99,4 +95,18 @@ func newClient() (*rpc.Client, error) {
 	log.Printf("client: connected to: tcp://:", addr)
 
 	return client, nil
+}
+
+// rpcCall invoke lambda function, passing the given content.
+func rpcCall(client *rpc.Client, content []byte) (messages.InvokeResponse, error) {
+	resp := messages.InvokeResponse{}
+	err := client.Call("Function.Invoke", newRequest(content), &resp)
+	return resp, err
+}
+
+// newRequest create a lambda request with the given content.
+func newRequest(content []byte) messages.InvokeRequest {
+	return messages.InvokeRequest{
+		Payload: content,
+	}
 }

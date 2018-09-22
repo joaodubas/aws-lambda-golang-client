@@ -7,20 +7,16 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"path/filepath"
 
 	"github.com/aws/aws-lambda-go/lambda/messages"
 )
 
 func main() {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		panic(err)
-	}
-
-	if info.Mode()&os.ModeNamedPipe != os.ModeNamedPipe || info.Size() < 0 {
-		fmt.Println("The command is intended to work with pipes.")
-		fmt.Println("Usage: echo '{\"foo\": \"bar\"}' | lambda_client")
-		return
+	if info, err := os.Stdin.Stat(); err != nil {
+		log.Fatalf("stat: couldn't fetch stdin stat: %v", err)
+	} else if !stdinFromPipe(info) || stdinIsEmpty(info) {
+		help()
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -57,4 +53,25 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("Stdout:\n", string(rep.Payload))
+}
+
+// stdinFromPipe check if stdin was set from a pipe.
+func stdinFromPipe(info os.FileInfo) bool {
+	return info.Mode()&os.ModeNamedPipe != os.ModeNamedPipe
+}
+
+// stdinIsEmpyt check if stdin is empty.
+func stdinIsEmpty(info os.FileInfo) bool {
+	return info.Size() <= 0
+}
+
+// help show help message and exit.
+func help() {
+	_, cmd := filepath.Split(os.Args[0])
+	msg := `%s is intended to work with pipes.
+
+Usage: echo '{"foo": "bar"}' | lambda_client
+`
+	fmt.Printf(msg, cmd)
+	os.Exit(1)
 }

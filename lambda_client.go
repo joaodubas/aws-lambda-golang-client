@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,17 +26,10 @@ func main() {
 	}
 	log.Printf("read: get content: %s", string(output))
 
-	port := os.Getenv("_LAMBDA_SERVER_PORT")
-	if port == "" {
-		log.Fatal("You need export the variable _LAMBDA_SERVER_PORT")
-	}
-
-	log.Println("Connecting to: tcp://localhost:" + port)
-	client, err := rpc.Dial("tcp", "localhost:"+port)
+	client, err := newClient()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("client: error: %v", err)
 	}
-	log.Println("Connected to: tcp://localhost:" + port)
 
 	req := messages.InvokeRequest{}
 	req.Payload = []byte(string(output))
@@ -86,4 +80,23 @@ func read(r io.Reader) ([]rune, error) {
 		}
 	}
 	return output, nil
+}
+
+// newClient create a rpc client for a given lambda server.
+func newClient() (*rpc.Client, error) {
+	port := os.Getenv("_LAMBDA_SERVER_PORT")
+	if port == "" {
+		return nil, errors.New("missing _LAMBDA_SERVER_PORT env variable")
+	}
+
+	addr := fmt.Sprintf("localhost:%s", port)
+	log.Printf("client: connecting to: tcp://%s", addr)
+
+	client, err := rpc.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("client: connected to: tcp://:", addr)
+
+	return client, nil
 }

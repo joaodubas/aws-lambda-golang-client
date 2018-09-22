@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
@@ -14,13 +13,7 @@ import (
 )
 
 func main() {
-	if info, err := os.Stdin.Stat(); err != nil {
-		log.Fatalf("stat: couldn't fetch stdin stat: %v", err)
-	} else if !stdinFromPipe(info) || stdinIsEmpty(info) {
-		help()
-	}
-
-	output, err := read(os.Stdin)
+	output, err := fetchContent()
 	if err != nil {
 		log.Fatalf("read: couldn't read from stdin: %v", err)
 	}
@@ -31,51 +24,54 @@ func main() {
 		log.Fatalf("client: error: %v", err)
 	}
 
-	resp, err := rpcCall(client, []byte(string(output)))
+	resp, err := rpcCall(client, output)
 	if err != nil {
 		log.Fatalf("rpc: communication error: %v", err)
 	}
 	log.Printf("rpc: get: %s", string(resp.Payload))
 }
 
-// stdinFromPipe check if stdin was set from a pipe.
-func stdinFromPipe(info os.FileInfo) bool {
-	return info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe
+// fetchContent fetch content either from args or standard input.
+func fetchContent() ([]byte, error) {
+	useArgs := len(os.Args) == 2
+	if useArgs {
+		return fetchContentFromArgs()
+	} else {
+		return fetchContentFromStdin()
+	}
 }
 
-// stdinIsEmpyt check if stdin is empty.
-func stdinIsEmpty(info os.FileInfo) bool {
-	return info.Size() < 0
+// fetchContentFromArgs fetch content from first arg sent to command.
+func fetchContentFromArgs() ([]byte, error) {
+	content := os.Args[1]
+	if content == "-h" {
+		help()
+	}
+	return []byte(os.Args[1]), nil
+}
+
+// fetchContentFromStdin fetch content from standard input.
+func fetchContentFromStdin() ([]byte, error) {
+	return ioutil.ReadAll(os.Stdin)
 }
 
 // help show help message and exit.
 func help() {
 	_, cmd := filepath.Split(os.Args[0])
-	msg := `%s is intended to work with pipes.
+	msg := `%s invoke local lambda function, through rpc.
 
-Usage: echo '{"foo": "bar"}' | lambda_client
+Usage:
+
+    $ echo '{"foo": "bar"}' | lambda_client
+
+    $ lambda_client '{"foo": "bar"}'
+
+    $ lambda_client <<EOF
+    > {"foo": "bar"}
+    > EOF
 `
-	fmt.Printf(msg, cmd)
+	fmt.Fprintf(os.Stderr, msg, cmd)
 	os.Exit(1)
-}
-
-// read all content from a given reader into an array of runes.
-func read(r io.Reader) ([]rune, error) {
-	buff := bufio.NewReader(r)
-	var output []rune
-
-	for {
-		if input, _, err := buff.ReadRune(); err != nil {
-			if err == io.EOF {
-				break
-			} else {
-				return output, err
-			}
-		} else {
-			output = append(output, input)
-		}
-	}
-	return output, nil
 }
 
 // newClient create a rpc client for a given lambda server.

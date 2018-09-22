@@ -50,12 +50,12 @@ func main() {
 
 // stdinFromPipe check if stdin was set from a pipe.
 func stdinFromPipe(info os.FileInfo) bool {
-	return info.Mode()&os.ModeNamedPipe != os.ModeNamedPipe
+	return info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe
 }
 
 // stdinIsEmpyt check if stdin is empty.
 func stdinIsEmpty(info os.FileInfo) bool {
-	return info.Size() <= 0
+	return info.Size() < 0
 }
 
 // help show help message and exit.

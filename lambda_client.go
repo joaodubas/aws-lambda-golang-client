@@ -88,7 +88,7 @@ func newClient() (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("client: connected to: tcp://:", addr)
+	log.Printf("client: connected to: tcp://%s", addr)
 
 	return client, nil
 }
@@ -101,8 +101,8 @@ func rpcCall(client *rpc.Client, content []byte) (messages.InvokeResponse, error
 }
 
 // newRequest create a lambda request with the given content.
-func newRequest(content []byte) messages.InvokeRequest {
-	return messages.InvokeRequest{
+func newRequest(content []byte) *messages.InvokeRequest {
+	return &messages.InvokeRequest{
 		Payload: content,
 	}
 }
